@@ -1,12 +1,23 @@
-const express = require("express");
-const { getLockers, getLocker, addLocker, updateLocker, deleteLocker } = require("../controllers/lockerController");
+import express from "express";
+import {
+  createLocker,
+  deleteLocker,
+  getLockers,
+  updateLocker,
+} from "../controllers/lockerController.js";
 
 const router = express.Router();
 
-router.get("/", getLockers);
-router.get("/:id", getLocker);
-router.post("/", addLocker);
-router.put("/:id", updateLocker);
-router.delete("/:id", deleteLocker);
+// POST /locker - creates a new locker
+router.post("/", createLocker);
 
-module.exports = router;
+// GET /locker - fetch all lockers
+router.get("/", getLockers);
+
+// PUT /locker - edit a locker
+router.put("/:number", updateLocker);
+
+// DELETE /locker - delete a locker
+router.delete("/:number", deleteLocker);
+
+export default router;

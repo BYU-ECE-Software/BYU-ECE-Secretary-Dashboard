@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =====================
+//      MODEL: User
+// =====================
+
+model User {
+  id                  Int                   @id @default(autoincrement())
+  firstName           String
+  lastName            String
+  email               String                @unique
+  byuId               String?               @unique
+  netId               String?               @unique
+  positionId          Int
+  position            Position              @relation(fields: [positionId], references: [id])
+  locker              Locker?
+  keys                Key[]
+  desksAsStudent      Desk?                 @relation("DeskStudent")
+  desksAsProfessor    Desk[]                @relation("DeskProfessor")
+  roomAccess          StudentRoomAccess[]
+}
+
+// =====================
+//      MODEL: Position
+// =====================
+model Position {
+  id           Int      @id @default(autoincrement())
+  description  String
+  users        User[]
+}
+
+// =====================
+//      MODEL: Locker
+// =====================
+
+model Locker {
+  number     Int         @id
+  userId     Int?        @unique
+  user       User?       @relation(fields: [userId], references: [id])
+  className  String?
+  endDate    DateTime?   @db.Date
+  
+}
+
+// =====================
+//      MODEL: Key
+// =====================
+
+model Key {
+  number  Int    @id
+  userId  Int?   
+  user    User?  @relation(fields: [userId], references: [id])
+
+  @@index([userId]) // nice for lookups like: all keys for a user
+}
+
+// =====================
+//      MODEL: Status
+// =====================
+model Status {
+  id            Int      @id @default(autoincrement())
+  description   String
+  desks         Desk[]
+}
+
+// =====================
+//      MODEL: Desk
+// =====================
+model Desk {
+  number        Int        @id 
+  studentId     Int?       @unique
+  student       User?      @relation("DeskStudent", fields: [studentId], references: [id])
+  statusId      Int
+  status        Status     @relation(fields: [statusId], references: [id])
+  professorId   Int?
+  professor     User?      @relation("DeskProfessor", fields: [professorId], references: [id])
+  endDate       DateTime?
+}
+
+// ---------- Physical access (rooms & codes) ----------
+// =====================
+//      MODEL: Room
+// =====================
+model Room {
+  id        Int                  @id @default(autoincrement())
+  name      String
+  codes     CodeRoom[]
+  access    StudentRoomAccess[]
+}
+
+// =====================
+//      MODEL: Code
+// =====================
+model Code {
+  id        Int        @id @default(autoincrement())
+  value     String
+  isGlobal  Boolean    @default(false)  // true = code opens all doors, false = code is room or group specific
+  rooms   CodeRoom[]
+
+  @@index([isGlobal])
+}
+
+// =====================
+//      MODEL: CodeRoom
+// =====================
+model CodeRoom {
+  codeId   Int
+  roomId   Int
+  code     Code  @relation(fields: [codeId], references: [id])
+  room     Room  @relation(fields: [roomId], references: [id])
+
+  @@id([codeId, roomId])
+  @@index([roomId])
+}
+
+// ==============================
+//      MODEL: StudentRoomAccess
+// ==============================
+model StudentRoomAccess {
+  userId   Int
+  roomId   Int
+  user     User  @relation(fields: [userId], references: [id])
+  room     Room  @relation(fields: [roomId], references: [id])
+
+  @@id([userId, roomId])
+  @@index([roomId])
+}
+
+// ============================
+//      MODEL: ImportantDates
+// ============================
+
+model ImportantDates {
+  id             Int       @id @default(autoincrement())
+  description    String
+  assignedDate   DateTime  @db.Date
+  currentOption  Boolean   @default(true)
+}
