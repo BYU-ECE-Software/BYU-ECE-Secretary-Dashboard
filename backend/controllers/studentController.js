@@ -2,21 +2,18 @@ const Student = require("../models/Student");
 
 exports.getStudents = async (req, res) => {
   try {
-    const students = await Student.find()
+    const students = await Student.find();
     res.json(students);
-  }
-  catch (error) {
+  } catch (error) {
     res.status(500).json({ error: "Failed to fetch students" });
-
   }
 };
 
 exports.getStudent = async (req, res) => {
   try {
-    const student = await Student.findById(req.params.id)
+    const student = await Student.findById(req.params.id);
     res.json(student);
-  }
-  catch (error) {
+  } catch (error) {
     res.status(500).json({ error: "Failed to fetch student" });
   }
 };
@@ -28,7 +25,11 @@ exports.addStudent = async (req, res) => {
 };
 
 exports.updateStudent = async (req, res) => {
-  const updatedStudent = await Student.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const updatedStudent = await Student.findByIdAndUpdate(
+    req.params.id,
+    req.body,
+    { new: true }
+  );
   res.json(updatedStudent);
 };
 
@@ -37,7 +38,6 @@ exports.deleteStudent = async (req, res) => {
   res.json({ message: "Student deleted" });
 };
 
-
 exports.bulkUpdate = async (req, res) => {
   try {
     const updates = req.body;
@@ -45,7 +45,7 @@ exports.bulkUpdate = async (req, res) => {
     for (const update of updates) {
       await Student.findByIdAndUpdate(update._id, {
         overleafProfessor: update.overleafProfessor,
-        overleafStatus: update.overleafStatus
+        overleafStatus: update.overleafStatus,
       });
     }
 
@@ -55,8 +55,8 @@ exports.bulkUpdate = async (req, res) => {
   }
 };
 
-exports.registerStudent = async(req,res) => {
-  try{
+exports.registerStudent = async (req, res) => {
+  try {
     console.log("Made it to API Call");
     const newStudent = new Student(req.body);
     console.log(req.body);
@@ -64,9 +64,12 @@ exports.registerStudent = async(req,res) => {
     res.status(201).json(savedStudent);
     console.log("Here");
   } catch (error) {
-    if (error.code === 11000) { // Duplicate key error
-      return res.status(400).json({ error: 'Email, Net ID, or BYU ID already exists' });
+    if (error.code === 11000) {
+      // Duplicate key error
+      return res
+        .status(400)
+        .json({ error: "Email, Net ID, or BYU ID already exists" });
     }
-    res.status(500).json({ error: 'Server error during registration' });
+    res.status(500).json({ error: "Server error during registration" });
   }
 };

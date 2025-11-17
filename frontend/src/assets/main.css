@@ -1,88 +1,69 @@
-@import './base.css';
-@import 'tailwindcss';
+@import "tailwindcss";
 
+/* Declare brand colors as Tailwind tokens */
+@theme {
+  --color-byu-navy: #002e5d;
+  --color-byu-royal: #0047ba;
+  --color-byu-dark-gray: #141414;
+  --color-byu-medium-gray: #666666;
+  --color-byu-white: #ffffff;
+  --color-byu-red-bright: #e61744;
+  --color-byu-red-dark: #a3082a;
+  --color-byu-yellow-bright: #ffb700;
+  --color-byu-brown: #8c3a00;
+  --color-byu-green-bright: #10a170;
+  --color-byu-green-dark: #006141;
+  --color-byu-info-blue-bright: #1fb3d1;
+  --color-byu-info-blue-dark: #006073;
+}
 
+:root {
+  --byu-navy: #002e5d;
+  --byu-royal: #0047ba;
+  --byu-dark-gray: #141414;
+  --byu-medium-gray: #666666;
+  --byu-white: #ffffff;
+  --byu-red-bright: #e61744;
+  --byu-red-dark: #a3082a;
+  --byu-yellow-bright: #ffb700;
+  --byu-brown: #8c3a00;
+  --byu-green-bright: #10a170;
+  --byu-green-dark: #006141;
+  --byu-info-blue-bright: #1fb3d1;
+  --byu-info-blue-dark: #006073;
+}
+/* App Layout */
 #app {
-  /* max-width: 1280px; */
   margin: 0;
   padding: 0;
-  font-weight: normal;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-a.blue {
-  text-decoration: none;
-  color: var(--byu-royal);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-a.white{
-  text-decoration: none;
-  color: white;
-  transition: 0.4s;
-  padding: 3px;
-}
-
-a.white:hover{
-  text-decoration: underline;
-}
-
-body {
-  width: 100vw;
-  min-height: 100vh;
-  margin: 0;
-  padding: 0;
   display: flex;
   flex-direction: column;
 }
 
 .container {
   max-width: 200rem;
-  /* Adjust as needed */
   width: 100%;
-  margin: 0 0;
-  /* Centers the content */
-  padding: 0 0;
+  margin: 0;
+  padding: 0;
   place-items: top;
-  /* Adds left/right padding */
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+/* nav bar hover underline */
+.nav-link-hover {
+  position: relative;
 }
-
-@media (min-width: 1024px) {
-  body {
-    width: 100vw;
-    min-height: 100vh;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  #app {
-    /* display: grid; */
-    /* grid-template-columns: 1fr; */
-    /* padding: 0 2rem; */
-    margin: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  h1, h2, h3 {
-    font-family: 'HCo Ringside Narrow SSm', 'Open Sans', Helvetica, Arial, sans-serif;
-    color: var(--byu-navy);
-  }
-  
-  p {
-    font-family: 'Public Sans', 'Noto Sans', 'Open Sans', Helvetica, Arial, sans-serif;
-    color: var(--byu-navy);
-  }
+.nav-link-hover::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: var(--byu-navy);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.nav-link-hover:hover::after {
+  transform: scaleX(1);
 }
