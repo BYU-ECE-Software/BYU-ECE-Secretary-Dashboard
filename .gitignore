@@ -1,6 +1,9 @@
 # Prevent secrets from being committed
 **/.env*
 
+# dist folder
+dist/
+
 # Avoid duplicate declaration
 node_modules/
 
