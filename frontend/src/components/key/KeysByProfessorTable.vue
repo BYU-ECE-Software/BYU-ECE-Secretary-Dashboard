@@ -53,12 +53,14 @@
                   <!-- empty first cell under professor -->
                   <td class="px-3 py-2"></td>
 
+                  <!-- key number -->
                   <td
                     class="px-3 py-2 font-medium text-xs text-byu-navy whitespace-nowrap text-center"
                   >
                     #{{ k.number }}
                   </td>
 
+                  <!-- kebab three dot button -->
                   <td class="px-2 py-2 w-8 align-middle">
                     <button
                       class="p-1.5 rounded-full focus:outline-none text-gray-700 cursor-pointer hover:bg-gray-100"
@@ -146,7 +148,7 @@
             class="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-gray-50 active:bg-gray-100 text-red-600 flex items-center gap-2 cursor-pointer"
             role="menuitem"
             @click="
-              emit('delete', { number: openMenuFor });
+              emit('delete', activeKey);
               closeMenu();
             "
           >
@@ -168,13 +170,20 @@ import {
   TrashIcon,
 } from "@heroicons/vue/24/outline";
 
+// Input list of keys, each with an optional professor attached
 const props = defineProps({
   // keys from DB: [{ number, user: { id, firstName, lastName, email } | null }]
   keys: { type: Array, default: () => [] },
 });
 
+// Events sent back to the parent when actions are clicked
 const emit = defineEmits(["unassign", "edit", "delete"]);
 
+// Track which key’s menu is open and where to place the floating kebab menu
+const openMenuFor = ref(null);
+const menuPosition = ref({ top: 0, left: 0 });
+
+// Build a list of professors, each with their list of keys
 const groups = computed(() => {
   const byId = new Map();
   for (const k of props.keys) {
@@ -200,17 +209,13 @@ const groups = computed(() => {
   return arr;
 });
 
-// kebab state (floating menu)
-const openMenuFor = ref(null); // the key.number that is open, or null
-const menuPosition = ref({ top: 0, left: 0 });
-
-// Look up the full key object (with user) by number
+// Find the full key record for whichever key's menu is currently open
 const activeKey = computed(
   () => props.keys.find((k) => k.number === openMenuFor.value) || null
 );
 
+// Open or close the menu and position it next to the clicked button
 function openDropdown(keyNumber, evt) {
-  // toggle off if clicking same one
   if (openMenuFor.value === keyNumber) {
     closeMenu();
     return;
@@ -218,17 +223,16 @@ function openDropdown(keyNumber, evt) {
 
   const rect = evt.currentTarget.getBoundingClientRect();
 
-  // Right-align the menu to the button, similar to your old `right-0` style.
-  // w-44 = 11rem ≈ 176px assuming 16px root font-size.
   const menuWidth = 176;
   menuPosition.value = {
-    top: rect.bottom + 4, // a few px below the button
-    left: rect.right - menuWidth, // align right edge to button's right
+    top: rect.bottom + 4,
+    left: rect.right - menuWidth,
   };
 
   openMenuFor.value = keyNumber;
 }
 
+// Fully close the floating kebab menu
 function closeMenu() {
   openMenuFor.value = null;
 }

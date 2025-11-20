@@ -5,7 +5,7 @@
       {{ label }}
     </label>
 
-    <!-- Card -->
+    <!-- Person summary card -->
     <div
       class="border border-byu-navy/20 rounded-xl p-3 bg-white/80 shadow-sm text-sm"
     >
@@ -29,7 +29,7 @@
               {{ eyebrow }}
             </div>
 
-            <!-- Name -->
+            <!-- Name (slot override allowed if parent wants custom) -->
             <div class="font-semibold text-byu-navy leading-5">
               <slot name="name">
                 {{ safePerson.firstName }} {{ safePerson.lastName }}
@@ -45,7 +45,7 @@
               {{ safePerson.email }}
             </div>
 
-            <!-- Chips: NetID / BYU ID (only if present) -->
+            <!-- Small pill chips for NetID / BYU ID if we have them -->
             <div
               v-if="safePerson.netId || safePerson.byuId"
               class="flex flex-wrap items-center gap-2.5 pt-0.5"
@@ -69,7 +69,7 @@
           </div>
         </div>
 
-        <!-- RIGHT: actions slot -->
+        <!-- RIGHT: action buttons injected by parent (e.g. Clear) -->
         <div class="shrink-0 flex items-center gap-2">
           <slot name="actions" />
         </div>
@@ -81,14 +81,20 @@
 <script setup>
 import { computed } from "vue";
 
+/* ===== Props ===== */
+
 const props = defineProps({
   // Expected shape: { firstName?, lastName?, email?, netId?, byuId? }
   person: { type: Object, default: null },
-  // e.g., “Currently assigned to”, “New • will be created on Save”
+  // Small label above the name (e.g. “Currently assigned to”)
   eyebrow: { type: String, default: "" },
+  // Label above the entire card (used in forms)
   label: { type: String, default: "" },
 });
 
+/* ===== Derived person fields (safe defaults) ===== */
+
+// Normalize person so we always have empty strings instead of undefined
 const safePerson = computed(() => ({
   firstName: props.person?.firstName ?? "",
   lastName: props.person?.lastName ?? "",
@@ -97,12 +103,16 @@ const safePerson = computed(() => ({
   byuId: props.person?.byuId ?? "",
 }));
 
+/* ===== Avatar helpers ===== */
+
+// Build initials from first + last name
 const initials = computed(() => {
   const f = safePerson.value.firstName?.[0] || "";
   const l = safePerson.value.lastName?.[0] || "";
   return (f + l).toUpperCase();
 });
 
+// Accessible label for the avatar circle
 const avatarLabel = computed(() => {
   const { firstName, lastName } = safePerson.value;
   return `${firstName} ${lastName}`.trim() || "User avatar";

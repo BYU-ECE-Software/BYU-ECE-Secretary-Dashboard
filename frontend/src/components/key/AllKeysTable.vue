@@ -2,11 +2,11 @@
   <section
     class="bg-white border border-gray-200 rounded-2xl shadow-sm max-w-3xl mx-auto"
   >
-    <!-- Header -->
+    <!-- Header row with title + status filter pills -->
     <div class="px-4 py-3 flex items-center justify-between">
       <h2 class="text-sm font-semibold text-byu-navy">All Keys</h2>
 
-      <!-- Status pills -->
+      <!-- Status pills (All / Assigned / Unassigned) -->
       <div class="flex items-center gap-2">
         <span class="sr-only">Filter status</span>
         <div
@@ -49,7 +49,7 @@
       </div>
     </div>
 
-    <!-- Body -->
+    <!-- Body: keys table -->
     <div class="p-3">
       <div class="border border-gray-200 rounded-xl overflow-hidden">
         <div class="overflow-x-auto">
@@ -64,12 +64,13 @@
             </thead>
 
             <tbody>
+              <!-- Rows for each filtered key -->
               <tr
                 v-for="k in filteredKeys"
                 :key="k.number"
                 class="odd:bg-white even:bg-gray-50 hover:bg-byu-navy/5 transition-colors"
               >
-                <!-- Kebab column: left-aligned, very small -->
+                <!-- Kebab column: shows row actions menu -->
                 <td class="px-2 py-2 w-8 align-middle">
                   <button
                     class="p-1.5 rounded-full focus:outline-none text-gray-700 cursor-pointer hover:bg-gray-100"
@@ -92,13 +93,14 @@
                 <!-- Assigned To (centered) -->
                 <td class="px-3 py-2 text-center">
                   <template v-if="k.user">
-                    <span class="text-byu-navy text-xs"
-                      >{{ k.user.lastName }}, {{ k.user.firstName }}</span
-                    >
+                    <span class="text-byu-navy text-xs">
+                      {{ k.user.lastName }}, {{ k.user.firstName }}
+                    </span>
                   </template>
                 </td>
               </tr>
 
+              <!-- Empty state when no keys match filters/search -->
               <tr v-if="!filteredKeys.length">
                 <td class="px-3 py-8 text-center text-gray-500" colspan="99">
                   No keys found.
@@ -110,7 +112,7 @@
       </div>
     </div>
 
-    <!-- Floating kebab menu -->
+    <!-- Floating kebab menu (teleported so it can overlay the page) -->
     <Teleport to="body">
       <transition
         enter-active-class="transition ease-out duration-100"
@@ -120,6 +122,7 @@
         leave-from-class="opacity-100 scale-100"
         leave-to-class="opacity-0 scale-95"
       >
+        <!-- Only render menu when a row is active -->
         <div
           v-if="openMenuFor !== null && activeKey"
           class="fixed z-50 w-44 origin-top-left rounded-xl bg-white text-xs shadow-lg ring-1 ring-black/5 border border-gray-100 p-1"
@@ -158,6 +161,7 @@
             <span>Unassign</span>
           </button>
 
+          <!-- Edit key info -->
           <button
             class="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-gray-50 active:bg-gray-100 text-gray-800 flex items-center gap-2 cursor-pointer"
             role="menuitem"
@@ -175,6 +179,7 @@
 
           <div class="my-1 h-px bg-gray-100"></div>
 
+          <!-- Delete key action -->
           <button
             class="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-gray-50 active:bg-gray-100 text-red-600 flex items-center gap-2 cursor-pointer"
             role="menuitem"
@@ -202,8 +207,10 @@ import {
   TrashIcon,
 } from "@heroicons/vue/24/outline";
 
+/* ===== Props & Emits ===== */
+
 const props = defineProps({
-  // Array like: [{ number, user: { id, firstName, lastName } | null }]
+  // Keys from API: [{ number, user: { id, firstName, lastName } | null }]
   keys: { type: Array, default: () => [] },
 
   // v-model:status → 'all' | 'assigned' | 'unassigned'
@@ -222,25 +229,38 @@ const emit = defineEmits([
   "delete",
 ]);
 
-function updateStatus(val) {
-  emit("update:status", val);
-}
+/* ===== Local State ===== */
 
+// Which key's kebab menu is open (key.number) or null
+const openMenuFor = ref(null);
+
+// Screen coordinates for the floating menu
+const menuPosition = ref({ top: 0, left: 0 });
+
+/* ===== Derived Data ===== */
+
+// Keys filtered by status (all / assigned / unassigned)
 const filteredKeys = computed(() => {
   if (props.status === "assigned") return props.keys.filter((k) => !!k.user);
   if (props.status === "unassigned") return props.keys.filter((k) => !k.user);
   return props.keys;
 });
 
-// kebab state (for floating menu)
-const openMenuFor = ref(null); // the key.number that is open, or null
-const menuPosition = ref({ top: 0, left: 0 });
+// The currently active key for the open kebab menu
 const activeKey = computed(
   () => filteredKeys.value.find((k) => k.number === openMenuFor.value) || null
 );
 
+/* ===== Methods ===== */
+
+// Emit status change for v-model:status
+function updateStatus(val) {
+  emit("update:status", val);
+}
+
+// Open/close the kebab dropdown next to a key row
 function openDropdown(key, evt) {
-  // close if clicking the same one again
+  // Close if clicking the same row again
   if (openMenuFor.value === key.number) {
     closeMenu();
     return;
@@ -255,6 +275,7 @@ function openDropdown(key, evt) {
   openMenuFor.value = key.number;
 }
 
+// Hide the kebab menu
 function closeMenu() {
   openMenuFor.value = null;
 }

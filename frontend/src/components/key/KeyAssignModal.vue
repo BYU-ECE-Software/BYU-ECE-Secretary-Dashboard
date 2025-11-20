@@ -41,7 +41,7 @@
           class="rounded-lg border border-amber-300 bg-amber-50 p-3 mt-4"
         >
           <div class="flex items-start gap-2">
-            <!-- tiny warning icon, no extra imports -->
+            <!-- tiny warning icon, to let user know they input a non-existing key -->
             <ExclamationTriangleIcon
               class="h-5 w-5 text-amber-600"
               aria-hidden="true"
@@ -56,6 +56,7 @@
                 process?
               </p>
 
+              <!-- checkbox to confirm they want to create a new key on save -->
               <label
                 class="mt-2 inline-flex items-center gap-2 text-sm text-byu-navy"
               >
@@ -113,13 +114,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed } from "vue";
+import { ref, watch, computed } from "vue";
 import BaseEditModal from "@/components/BaseEditModal.vue";
 import KeyNumberInput from "@/components/key/KeyNumberInput.vue";
 import PersonCard from "@/components/common/PersonCard.vue";
 import ProfessorPicker from "@/components/common/ProfessorPicker.vue";
 import { ExclamationTriangleIcon } from "@heroicons/vue/24/outline";
-
 import { getKeyByNumber, createKey, updateKey } from "@/api/key";
 import { createUser } from "@/api/user";
 
@@ -130,42 +130,44 @@ const props = defineProps({
 });
 const emit = defineEmits(["close", "saved"]);
 
-/* State */
+/* --- Key state --- */
 const number = ref("");
+
+// Parsed numeric key; 0 means “invalid / not usable yet”
 const numberInt = computed(() => {
   const n = parseInt(number.value, 10);
   return Number.isFinite(n) && n > 0 ? n : 0;
 });
 
-const checking = ref(false);
-const keyFound = ref(false); // keep for internal logic
-const willCreateKey = ref(false); // toggled in missing case
-
-// current assignee info
-const existingProfessor = ref(null);
-const removingExisting = ref(false);
-const currentAssigneeId = computed(() => existingProfessor.value?.id ?? null);
-
-const selectedProfessor = ref(null);
-const newProfessor = ref({ firstName: "", lastName: "", email: "" });
-
-const error = ref(null);
-const saving = ref(false);
+const checking = ref(false); // true while calling getKeyByNumber
+const keyFound = ref(false); // whether a key exists for this number
+const willCreateKey = ref(false); // user opted to create missing key on save
 
 // 'found' | 'missing' | null
 const resolved = ref(null);
 const showMissingBanner = computed(() => resolved.value === "missing");
 
-const lastCheckedNumber = ref(null); // number that produced current resolved state
+/* --- Professor state --- */
+// Current assignee on the key (if any)
+const existingProfessor = ref(null);
+const removingExisting = ref(false);
+const currentAssigneeId = computed(() => existingProfessor.value?.id ?? null);
 
+// Selection from ProfessorPicker, or inline “new professor” fields
+const selectedProfessor = ref(null);
+const newProfessor = ref({ firstName: "", lastName: "", email: "" });
+
+/* --- UI state --- */
+const error = ref(null);
+const saving = ref(false);
+
+// Reset key used to force ProfessorPicker to remount when context changes
 const pickerKey = computed(() => {
-  // Change this if your notion of “context” differs.
-  // Using the last checked number + resolved state is a good reset trigger.
   return `${resolved.value ?? "unset"}:${numberInt.value || ""}`;
 });
 
-// --- Save gating ---
-// user provided a professor (existing or new)
+/* --- Save gating & derived flags --- */
+// User has filled out all “new professor” fields
 const newProfFilled = computed(
   () =>
     (newProfessor.value.firstName || "").trim() &&
@@ -173,7 +175,7 @@ const newProfFilled = computed(
     (newProfessor.value.email || "").trim()
 );
 
-// when a key is found AND it has a user AND user hasn’t clicked “clear”
+// Keep existing assignee when key is found AND user hasn’t cleared/overridden
 const keepExisting = computed(
   () =>
     resolved.value === "found" &&
@@ -183,11 +185,12 @@ const keepExisting = computed(
     !newProfFilled.value
 );
 
+// Some valid professor source is available (keep existing, pick, or create new)
 const hasProfessor = computed(
   () => keepExisting.value || !!selectedProfessor.value || !!newProfFilled.value
 );
 
-// valid key path = number checked + (found OR (missing & opted to create))
+// Valid key path = number checked + (found OR (missing & opted to create))
 const hasKey = computed(
   () =>
     numberInt.value > 0 &&
@@ -195,80 +198,18 @@ const hasKey = computed(
       (resolved.value === "missing" && willCreateKey.value === true))
 );
 
-// final gate for Save (per your requirement: professor is required in this modal)
+// Final gate for Save: need valid key, professor, and not currently checking
 const canSave = computed(
   () => hasKey.value && hasProfessor.value && !checking.value
 );
 
-/* Lifecycle: open/reset */
-watch(
-  () => props.open,
-  async (isOpen) => {
-    if (!isOpen) return;
-
-    // reset form
-    number.value = "";
-    checking.value = false;
-    keyFound.value = false;
-    willCreateKey.value = false;
-
-    existingProfessor.value = null;
-    removingExisting.value = false;
-
-    selectedProfessor.value = null;
-    newProfessor.value = { firstName: "", lastName: "", email: "" };
-
-    error.value = null;
-    resolved.value = null;
-
-    // Prefill from a key row (optional)
-    if (props.keyItem && props.keyItem.number) {
-      number.value = String(props.keyItem.number);
-      await lookup(numberInt.value); // <— triggers “found” and shows Section B
-    }
-  }
-);
-
-/* Number input handlers */
-async function onNumberValid(n) {
-  await lookup(n);
-}
-function onNumberInvalid() {
-  resolved.value = null;
-  keyFound.value = false;
-  willCreateKey.value = false;
-  existingProfessor.value = null;
-  removingExisting.value = false;
-
-  // also clear selection since key changed back to invalid
-  clearProfessor();
+// Reset all professor selection fields (existing, picker, and new-person form)
+function clearProfessor() {
+  selectedProfessor.value = null;
+  newProfessor.value = { firstName: "", lastName: "", email: "" };
 }
 
-async function manualCheck() {
-  if (!numberInt.value) return;
-  await lookup(numberInt.value);
-}
-
-watch(willCreateKey, (checked) => {
-  if (!checked && resolved.value === "missing") {
-    clearProfessor(); // hide + reset picker selection when they uncheck
-  }
-});
-
-watch(number, () => {
-  // If they’re editing, hide any prior result/banner immediately
-  resolved.value = null; // hides the missing banner
-  willCreateKey.value = false; // uncheck the “create on save”
-  keyFound.value = false;
-  error.value = null;
-
-  // also reset professor UI because key context changed
-  clearProfessor();
-  removingExisting.value = false;
-
-  // We’re now “between states” until Lookup/Enter/blur triggers a new check
-});
-
+// Look up a key number and update UI state based on whether it exists
 async function lookup(n) {
   checking.value = true;
   error.value = null;
@@ -278,7 +219,6 @@ async function lookup(n) {
 
   try {
     const key = await getKeyByNumber(n).catch(() => null);
-    lastCheckedNumber.value = n;
 
     if (key) {
       resolved.value = "found";
@@ -304,12 +244,76 @@ async function lookup(n) {
   }
 }
 
-function clearProfessor() {
-  selectedProfessor.value = null;
-  newProfessor.value = { firstName: "", lastName: "", email: "" };
+// Reset the modal each time it opens (and optionally prefill from keyItem)
+watch(
+  () => props.open,
+  async (isOpen) => {
+    if (!isOpen) return;
+
+    // reset form
+    number.value = "";
+    checking.value = false;
+    keyFound.value = false;
+    willCreateKey.value = false;
+
+    existingProfessor.value = null;
+    removingExisting.value = false;
+
+    selectedProfessor.value = null;
+    newProfessor.value = { firstName: "", lastName: "", email: "" };
+
+    error.value = null;
+    resolved.value = null;
+
+    // Prefill from a key row (optional)
+    if (props.keyItem && props.keyItem.number) {
+      number.value = String(props.keyItem.number);
+      await lookup(numberInt.value); // triggers “found” and shows Section B
+    }
+  }
+);
+
+// If user unchecks “create key” while missing, clear professor selection
+watch(willCreateKey, (checked) => {
+  if (!checked && resolved.value === "missing") {
+    clearProfessor();
+  }
+});
+
+// When the key number changes, reset state until they explicitly look it up again
+watch(number, () => {
+  resolved.value = null;
+  willCreateKey.value = false;
+  keyFound.value = false;
+  error.value = null;
+
+  clearProfessor();
+  removingExisting.value = false;
+});
+
+// Auto-lookup when KeyNumberInput reports a valid key number
+async function onNumberValid(n) {
+  await lookup(n);
 }
 
-/* Submit */
+// Reset key/professor state when the key input becomes invalid
+function onNumberInvalid() {
+  resolved.value = null;
+  keyFound.value = false;
+  willCreateKey.value = false;
+  existingProfessor.value = null;
+  removingExisting.value = false;
+
+  clearProfessor();
+}
+
+// Manually trigger a lookup using the current numeric key value
+async function manualCheck() {
+  if (!numberInt.value) return;
+  await lookup(numberInt.value);
+}
+
+/* --- Submit --- */
 async function handleSubmit() {
   if (saving.value) return;
   error.value = null;
@@ -326,13 +330,13 @@ async function handleSubmit() {
   try {
     saving.value = true;
 
-    // create key if needed
+    // Create key if needed
     if (!keyFound.value && willCreateKey.value) {
       await createKey({ number: n });
       keyFound.value = true;
     }
 
-    // --- resolve the professor id for the assignment ---
+    // Resolve the professor id for the assignment
     const creatingNewProfessor =
       (newProfessor.value.firstName || "").trim() &&
       (newProfessor.value.lastName || "").trim() &&
@@ -341,7 +345,7 @@ async function handleSubmit() {
     let finalProfessorId = null;
 
     if (keepExisting.value && currentAssigneeId.value) {
-      // ✅ keep the current assignment
+      // Keep the current assignment
       finalProfessorId = currentAssigneeId.value;
     } else if (creatingNewProfessor) {
       const created = await createUser({
@@ -354,11 +358,11 @@ async function handleSubmit() {
     } else if (selectedProfessor.value) {
       finalProfessorId = selectedProfessor.value.id;
     } else {
-      // safety (shouldn’t happen because canSave = true)
+      // Safety (shouldn’t happen because canSave = true)
       throw new Error("No professor selected.");
     }
 
-    // Optional no-op short-circuit: don’t call API if nothing changed
+    // No-op short-circuit: don’t call API if nothing actually changed
     if (
       resolved.value === "found" &&
       currentAssigneeId.value === finalProfessorId
@@ -377,10 +381,3 @@ async function handleSubmit() {
   }
 }
 </script>
-
-<style scoped>
-hr {
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
-}
-</style>
