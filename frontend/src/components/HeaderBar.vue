@@ -95,6 +95,12 @@
         :style="{ paddingLeft: navPadLeft + 'px' }"
       >
         <RouterLink
+          :to="{ name: 'Home' }"
+          class="px-8 py-4 hover:bg-[#FAFAFA] rounded-md block nav-link-hover"
+        >
+          Home
+        </RouterLink>
+        <RouterLink
           :to="{ name: 'Students' }"
           class="px-8 py-4 hover:bg-[#FAFAFA] rounded-md block nav-link-hover"
         >
