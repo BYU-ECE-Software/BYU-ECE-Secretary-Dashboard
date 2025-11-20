@@ -21,8 +21,6 @@
             <KeyNumberInput
               v-model="row.input"
               placeholder="Enter key number..."
-              @valid="onRowValid(row, $event)"
-              @invalid="onRowInvalid(row)"
             />
           </div>
 
@@ -65,7 +63,7 @@
         </div>
       </div>
 
-      <!-- Success banner (only when we created at least one) -->
+      <!-- Success banner (only shows when at least one key was created but another key threw an error) -->
       <div
         v-if="summary && summary.created?.length"
         class="rounded-lg border border-emerald-300 bg-emerald-50 p-3"
@@ -116,7 +114,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from "vue";
+import { ref, watch } from "vue";
 import BaseEditModal from "@/components/BaseEditModal.vue";
 import KeyNumberInput from "@/components/key/KeyNumberInput.vue";
 import { createKey } from "@/api/key";
@@ -127,83 +125,51 @@ import {
   CheckCircleIcon,
 } from "@heroicons/vue/24/outline";
 
+// Control open state from parent; emit when closed or after save.
 const props = defineProps({
   open: { type: Boolean, default: false },
 });
 const emit = defineEmits(["close", "saved"]);
 
-/** rows: [{ id, input, valid, value (int) }] */
+// Each row represents one key number entry: { id, input, valid, value (int) }.
 let nextId = 1;
-const rows = ref([{ id: nextId++, input: "", valid: false, value: null }]);
+const rows = ref([{ id: nextId++, input: "" }]);
 
+// Global UI state for the modal (saving flag, error, and summary of results).
 const saving = ref(false);
 const error = ref(null);
 const summary = ref(null);
 
-/* ——— helpers ——— */
+// Safely parse a positive integer; return null if invalid.
+function parseIntSafe(v) {
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// Reset the UI back to a single empty row after a successful save.
 function resetRowsToSingleEmpty() {
   rows.value = [{ id: nextId++, input: "", valid: false, value: null }];
 }
 
+// Add a new row, optionally prefilled (e.g., when pasting a list).
 function addRow(prefill = "") {
   const str = String(prefill ?? "").trim();
   const n = parseIntSafe(str);
   rows.value.push({
     id: nextId++,
     input: str,
-    valid: n != null, // pre-validate if number
+    valid: n != null, // pre-validate if it looks like a valid number
     value: n,
   });
 }
 
+// Remove a row by id; always keep at least one row visible.
 function removeRow(id) {
   rows.value = rows.value.filter((r) => r.id !== id);
   if (!rows.value.length) addRow();
 }
 
-function parseIntSafe(v) {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-/* KeyNumberInput hooks per row */
-function onRowValid(row, numericValue) {
-  row.valid = true;
-  row.value = numericValue ?? parseIntSafe(row.input);
-}
-function onRowInvalid(row) {
-  row.valid = false;
-  row.value = null;
-}
-
-/* Duplicate detection within current list */
-const counts = computed(() => {
-  const map = new Map();
-  for (const r of rows.value) {
-    if (r.value != null) map.set(r.value, (map.get(r.value) || 0) + 1);
-  }
-  return map;
-});
-function isDuplicate(row) {
-  return row.value != null && (counts.value.get(row.value) || 0) > 1;
-}
-
-function rowError(row) {
-  if (!row.input?.trim()) return null;
-  if (!row.valid) return "Enter a positive whole number.";
-  if (isDuplicate(row)) return "Duplicate in list.";
-  return null;
-}
-
-const validNumbers = computed(() =>
-  rows.value
-    .filter((r) => r.valid && r.value != null && !isDuplicate(r))
-    .map((r) => r.value)
-);
-
-const canSave = computed(() => validNumbers.value.length > 0);
-
-/* Reset on open */
+// Whenever the modal opens, clear errors/summary and ensure at least one row.
 watch(
   () => props.open,
   (isOpen) => {
@@ -216,16 +182,18 @@ watch(
   }
 );
 
-/* Submit */
+// Validate all inputs, call API to create keys, and emit back a summary.
 async function handleSubmit() {
   if (saving.value) return;
   error.value = null;
   summary.value = null;
 
+  // Parse all inputs and dedupe before sending to the backend.
   const parsed = rows.value
     .map((r) => parseIntSafe(r.input))
     .filter((n) => n != null);
   const nums = Array.from(new Set(parsed)); // dedupe
+
   if (!nums.length) {
     error.value = "Add at least one valid, non-duplicate key number.";
     return;
@@ -236,7 +204,7 @@ async function handleSubmit() {
   const failures = [];
 
   try {
-    // Create each key (sequential for simple, readable summary)
+    // Create each key sequentially to build a clear success/failure summary.
     for (const num of nums) {
       try {
         await createKey({ number: num });
@@ -247,23 +215,27 @@ async function handleSubmit() {
       }
     }
 
+    // Store a summary for the UI (which keys worked vs failed).
     summary.value = { created, failures };
 
+    // Reset the form back to a single blank row after submission.
     resetRowsToSingleEmpty();
 
-    // Notify parent
+    // Notify parent how many keys were created/failed.
     emit("saved", {
       createdCount: created.length,
       failureCount: failures.length,
     });
 
-    // Always close if fully successful; otherwise stay open to fix issues
+    // Close only if everything succeeded; otherwise stay open for fixes.
     if (failures.length === 0) {
       emit("close");
     }
   } catch (e) {
+    // Fallback error if something unexpected happens.
     error.value = e?.message || "Create failed.";
   } finally {
+    // Always clear the saving flag so UI can re-enable buttons.
     saving.value = false;
   }
 }

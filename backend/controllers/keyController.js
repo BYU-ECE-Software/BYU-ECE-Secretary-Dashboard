@@ -37,17 +37,62 @@ export const createKey = async (req, res) => {
 // GET Fetch all Keys
 export const getKeys = async (req, res) => {
   try {
+    const qRaw = (req.query.q ?? "").toString().trim();
+
+    // user search: split tokens, AND across tokens, OR across first/last/email
+    const terms = qRaw ? qRaw.split(/[\s,]+/).filter(Boolean) : [];
+    const userWhere = terms.length
+      ? {
+          AND: terms.map((term) => ({
+            OR: [
+              { firstName: { contains: term, mode: "insensitive" } },
+              { lastName: { contains: term, mode: "insensitive" } },
+              { email: { contains: term, mode: "insensitive" } },
+            ],
+          })),
+        }
+      : null;
+
+    const where = {};
+    const include = { user: true };
+
+    if (qRaw) {
+      // purely numeric? -> prefix matching on key number + user filter
+      if (/^\d+$/.test(qRaw)) {
+        const p = parseInt(qRaw, 10);
+
+        // Build OR ranges for prefix: [p, p+1), [p*10, (p+1)*10), [p*100, (p+1)*100), ...
+        const MAX_EXTRA_DIGITS = 6; // adjust if you have very large key numbers
+        const numberRanges = [];
+        for (let k = 0; k <= MAX_EXTRA_DIGITS; k++) {
+          const mult = Math.pow(10, k);
+          numberRanges.push({
+            number: { gte: p * mult, lt: (p + 1) * mult },
+          });
+        }
+
+        where.OR = [
+          // any key whose number starts with qRaw
+          ...numberRanges,
+          // OR any key whose linked user matches the user search (if any terms)
+          ...(userWhere ? [{ user: { is: userWhere } }] : []),
+        ];
+      } else if (userWhere) {
+        // text query → just user filter
+        where.user = { is: userWhere };
+      }
+    }
+
     const keys = await prisma.key.findMany({
+      where,
       orderBy: { number: "asc" },
-      include: {
-        user: true,
-      },
+      include,
     });
 
     res.status(200).json(keys);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to fetch keys " });
+    res.status(500).json({ error: "Failed to fetch keys" });
   }
 };
 

@@ -1,11 +1,14 @@
 import http from "./http";
 
 // GET /api/key -> array of keys with associated user
-export async function fetchKeys(opts = {}) {
-  const { data } = await http.get("/key", {
-    signal: opts.signal, // optional: lets you cancel in-flight requests
-  });
-  return data;
+export async function fetchKeys({ q } = {}, opts = {}) {
+  // If q is empty/undefined, backend returns all keys
+  return http
+    .get("/key", {
+      params: q ? { q } : undefined,
+      signal: opts.signal, // allow request cancellation
+    })
+    .then((res) => res.data);
 }
 
 // GET /api/key/:number -> single key (or null if not found)
