@@ -33,10 +33,47 @@ export const createUser = async (req, res) => {
 // GET Fetch all Users
 export const getUsers = async (req, res) => {
   try {
+    const { positionId } = req.query;
+
+    // New: optional search query
+    const qRaw = (req.query.q ?? "").toString().trim();
+
+    // user search: split tokens, AND across tokens, OR across fields
+    const terms = qRaw ? qRaw.split(/[\s,]+/).filter(Boolean) : [];
+    const userWhere = terms.length
+      ? {
+          AND: terms.map((term) => ({
+            OR: [
+              { firstName: { contains: term, mode: "insensitive" } },
+              { lastName: { contains: term, mode: "insensitive" } },
+              { email: { contains: term, mode: "insensitive" } },
+              { byuId: { contains: term, mode: "insensitive" } },
+              { netId: { contains: term, mode: "insensitive" } },
+            ],
+          })),
+        }
+      : null;
+
+    // Combine existing positionId filter with optional search
+    const andFilters = [];
+
+    if (positionId) {
+      andFilters.push({ positionId: Number(positionId) });
+    }
+
+    if (userWhere) {
+      andFilters.push(userWhere);
+    }
+
+    const where = andFilters.length ? { AND: andFilters } : undefined;
+
     const users = await prisma.user.findMany({
+      // Optional filter: filter by PositionId (student, professor, etc)
+      where,
       orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       include: {
         position: true,
+        locker: true,
       },
     });
 
