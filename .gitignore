@@ -1,8 +1,11 @@
-frontend/node_modules
-backend/node_modules
-backend/.env
-frontend/public/images
-tracks.xlsx
-frontend/.env.production
-backend/.env.production
-frontend/.env
+# Prevent secrets from being committed
+**/.env*
+
+# dist folder
+dist/
+
+# Avoid duplicate declaration
+node_modules/
+
+# certs
+certs/

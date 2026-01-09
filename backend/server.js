@@ -1,25 +1,27 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const fs = require('fs');
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+//import fs from 'fs';
 
 // const passport = require('passport');
 // const SamlStrategy = require('passport-saml').Strategy;
 // const session = require('express-session');
 
-
-const doorcodeRoutes = require("./routes/doorcodeRoutes");
-const studentRoutes = require("./routes/studentRoutes");
-const lockerRoutes = require("./routes/lockerRoutes");
+import positionRoutes from "./routes/positionRoutes.js";
+import statusRoutes from "./routes/statusRoutes.js";
+import roomRoutes from "./routes/roomRoutes.js";
+import codeRoutes from "./routes/codeRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import lockerRoutes from "./routes/lockerRoutes.js";
+import keyRoutes from "./routes/keyRoutes.js";
+import deskRoutes from "./routes/deskRoutes.js";
+import dateRoutes from "./routes/importantDatesRoutes.js";
 
 const allowedOrigins = [
-  'http://ecetracks.byu.edu',
-  'https://ecetracks.byu.edu',
-  'http://localhost:5173',
-  'http://localhost:3000'
+  "http://localhost",
+  "http://localhost:5173",
+  "http://localhost:3000",
 ];
-
 
 const app = express();
 
@@ -83,17 +85,18 @@ app.use(cors({ origin: allowedOrigins }));
 //   };
 // }
 
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log(err));
+// Mount Route Points
+app.use("/api/position", positionRoutes);
+app.use("/api/status", statusRoutes);
+app.use("/api/room", roomRoutes);
+app.use("/api/code", codeRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/locker", lockerRoutes);
+app.use("/api/key", keyRoutes);
+app.use("/api/desk", deskRoutes);
+app.use("/api/date", dateRoutes);
 
-app.use("/api/doorcodes", doorcodeRoutes);
-app.use("/api/students", studentRoutes);
-app.use("/api/lockers", lockerRoutes);
-
-const PORT = process.env.PORT;
-const IP = process.env.IP;
-app.listen(PORT, IP, () => console.log(`Server running on port ${PORT}`));
-
+const PORT = Number(process.env.PORT) || 3000;
+app.listen(PORT, "0.0.0.0", () =>
+  console.log(`Server running on port ${PORT}`)
+);
