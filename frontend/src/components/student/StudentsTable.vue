@@ -31,6 +31,15 @@
         <!-- Header -->
         <thead class="bg-slate-50 text-[13px] tracking-wide text-gray-500">
           <tr>
+            <th class="px-6 py-5 text-left whitespace-nowrap">
+              <input
+                ref="headerCheckboxEl"
+                type="checkbox"
+                :checked="allSelected"
+                @change="toggleSelectAll"
+                class="h-4 w-4 rounded border-gray-300 text-byu-royal focus:ring-byu-royal"
+              />
+            </th>
             <th class="px-6 py-5 text-left whitespace-nowrap">Name</th>
             <th class="px-6 py-3 text-left whitespace-nowrap">BYU ID Number</th>
             <th class="px-6 py-3 text-left whitespace-nowrap">Net ID</th>
@@ -51,6 +60,15 @@
             :key="student.id"
             class="hover:bg-byu-royal/10 transition-colors"
           >
+            <!-- Multi Select Checkbox -->
+            <td class="px-6 py-4 align-middle">
+              <input
+                type="checkbox"
+                :checked="selectedIds.has(student.id)"
+                @change="toggleRow(student.id)"
+                class="h-4 w-4 rounded border-gray-300 text-byu-royal focus:ring-byu-royal"
+              />
+            </td>
             <!-- Name -->
             <td class="px-6 py-4 align-middle">
               <div class="flex flex-col">
@@ -122,6 +140,7 @@
 </template>
 
 <script setup>
+import { ref, computed, watch } from "vue";
 import { toYMDUTC } from "@/utils/formatDate";
 import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 
@@ -134,10 +153,93 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  selectedIds: {
+    type: Array,
+    default: () => [],
+  },
 });
 
 // emits
-const emit = defineEmits(["edit"]);
+const emit = defineEmits(["edit", "selection-change"]);
+
+/** ---- Student Selection state ---- */
+
+// IDs of students that are currently selected (checked)
+const selectedIds = ref(new Set());
+
+// keep internal set of selected student ids in sync when parent changes selection
+watch(
+  () => props.selectedIds,
+  (ids) => {
+    selectedIds.value = new Set(ids);
+  },
+  { immediate: true }
+);
+
+// Returns "true" when every student row checkbox is checked
+const allSelected = computed(() => {
+  return (
+    props.students.length > 0 &&
+    selectedIds.value.size === props.students.length
+  );
+});
+
+// Returns "true" when some (but not all) student rows are selected
+const someSelected = computed(() => {
+  return (
+    selectedIds.value.size > 0 && selectedIds.value.size < props.students.length
+  );
+});
+
+// Show a dash in the header checkbox when some but not all rows are checked
+const headerCheckboxEl = ref(null);
+watch([someSelected, allSelected], () => {
+  if (headerCheckboxEl.value) {
+    headerCheckboxEl.value.indeterminate =
+      someSelected.value && !allSelected.value;
+  }
+});
+
+// give the parent StudentsPage the selected student IDs every time a checkbox changes
+function emitSelection() {
+  emit("selection-change", Array.from(selectedIds.value));
+}
+
+// Select or deselect all student rows when the header checkbox is toggled
+function toggleSelectAll(e) {
+  const checked = e.target.checked;
+
+  if (checked) {
+    const next = new Set();
+    for (const s of props.students) next.add(s.id);
+    selectedIds.value = next;
+  } else {
+    selectedIds.value = new Set();
+  }
+
+  emitSelection();
+}
+
+// Toggle selection for a single student row
+function toggleRow(id) {
+  const next = new Set(selectedIds.value);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  selectedIds.value = next;
+
+  emitSelection();
+}
+
+//If the list of students changes (filtering/paging), keep selection in sync
+watch(
+  () => props.students,
+  (students) => {
+    const valid = new Set(students.map((s) => s.id));
+    const next = new Set([...selectedIds.value].filter((id) => valid.has(id)));
+    selectedIds.value = next;
+  },
+  { deep: true }
+);
 
 // UTC-safe days-left calculation
 const daysLeft = (date) => {
@@ -187,7 +289,7 @@ const lockerVerb = (endDate) => {
   return "Expires";
 };
 
-// Use your UTC-safe formatter for the date string
+// Use UTC-safe formatter for the date string
 const formatDate = (date) => {
   const formatted = toYMDUTC(date);
   return formatted || "N/A";

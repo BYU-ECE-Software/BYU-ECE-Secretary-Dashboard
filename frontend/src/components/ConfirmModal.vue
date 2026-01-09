@@ -41,10 +41,10 @@
           <!-- Confirm button with color variant and busy label -->
           <button
             type="button"
-            class="px-3 py-1 rounded-lg text-sm text-white hover:brightness-90 active:brightness-85 shadow-sm transition cursor-pointer"
+            class="px-3 py-1 rounded-lg text-sm text-white shadow-sm transition hover:brightness-90 active:brightness-85 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:active:brightness-100"
             :class="variantClass"
             @click="onConfirm"
-            :disabled="busy"
+            :disabled="busy || confirmDisabled"
             autofocus
           >
             {{ busy ? busyLabel : confirmLabel }}
@@ -67,6 +67,7 @@ const props = defineProps({
   cancelLabel: { type: String, default: "Cancel" }, // cancel button text
   busy: { type: Boolean, default: false }, // disables buttons and swaps label e.g. "Removing…"
   busyLabel: { type: String, default: "Working…" }, // confirm label while busy
+  confirmDisabled: { type: Boolean, default: false },
   variant: { type: String, default: "danger" }, // visual style of confirm button "danger" | "primary"
   closeOnBackdrop: { type: Boolean, default: true }, // allow backdrop click to close
 });
