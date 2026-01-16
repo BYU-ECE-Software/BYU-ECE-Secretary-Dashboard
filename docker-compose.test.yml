@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile.test
     # container_name: secretary_dashboard_frontend
     restart: always
-    volumes:
-      - ./nginx.conf.test:/etc/nginx/nginx.conf:ro
+    # volumes:
+    #   - ./nginx.conf.test:/etc/nginx/nginx.conf:ro
     expose:
       - "80"
     depends_on:
