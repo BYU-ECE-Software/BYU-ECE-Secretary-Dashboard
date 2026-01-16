@@ -16,11 +16,10 @@ services:
       - proxy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.ecesecretaries.rule=Host(`ecepurchasing.ecesoftwaretesting.byu.edu`)
+      - traefik.http.routers.ecesecretaries.rule=Host(`ecesecretaries.ecesoftwaretesting.byu.edu`)
       - traefik.http.routers.ecesecretaries.entrypoints=websecure
       - traefik.http.routers.ecesecretaries.tls=true
       - traefik.http.services.ecesecretaries.loadbalancer.server.port=80
-
   api:
     build: 
       context: ./backend
