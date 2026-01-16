@@ -1,0 +1,62 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.test
+    # container_name: secretary_dashboard_frontend
+    restart: always
+    volumes:
+      - ./nginx.conf.test:/etc/nginx/nginx.conf:ro
+    expose:
+      - "80"
+    depends_on:
+      - api
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ecesecretaries.rule=Host(`ecepurchasing.ecesoftwaretesting.byu.edu`)
+      - traefik.http.routers.ecesecretaries.entrypoints=websecure
+      - traefik.http.routers.ecesecretaries.tls=true
+      - traefik.http.services.ecesecretaries.loadbalancer.server.port=80
+
+  api:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    # container_name: secretary_dashboard_api
+    restart: always
+    environment:
+      NODE_ENV: production
+    env_file:
+      - ./.env
+    depends_on:
+      - postgres
+    networks:
+      - default
+      - proxy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ecesecretaries-api.rule=Host(`ecesecretaries.ecesoftwaretesting.byu.edu`) && PathPrefix(`/api`)
+      - traefik.http.routers.ecesecretaries-api.entrypoints=websecure
+      - traefik.http.routers.ecesecretaries-api.tls=true
+      - traefik.http.services.ecesecretaries-api.loadbalancer.server.port=3000
+
+  postgres:
+    image: postgres:16
+    # container_name: secretary_dashboard_postgres
+    restart: always
+    env_file:
+      - ./.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - default
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
